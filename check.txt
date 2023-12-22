@@ -1,0 +1,51 @@
+//@version=5
+indicator("Swingizi Kai, overlay=true)
+
+// Settings
+conv = input(50, 'Convergence Factor')
+length = input(20)
+timeframe = input("D", title="Timeframe")
+
+// Style
+col_0 = input(#ffeb3b, 'Gradient', inline = 'inline0', group = 'Style')
+col_1 = input(#ff5d00, '', inline = 'inline0', group = 'Style')
+col_2 = input(#ff1100, '', inline = 'inline0', group = 'Style')
+
+// Squeeze index calculations on selected timeframe
+psiFunc() =>
+    var max = 0.
+    var min = 0.
+    max := nz(math.max(close, max - (max - close) / conv), close)
+    min := nz(math.min(close, min + (close - min) / conv), close)
+    diff = math.log(max - min)
+    -50 * ta.correlation(diff, bar_index, length) + 50
+
+psi = request.security(syminfo.tickerid, timeframe, psiFunc())
+
+// Alert conditions and plot value
+var int countAbove81 = 0
+var alerted = false
+var plotValue = 0
+if psi > 81
+    countAbove81 := countAbove81 + 1
+    if countAbove81 >= 15 and not alerted
+        alerted := true
+        plotValue := 1
+else if psi < 80
+    countAbove81 := 0
+    alerted := false
+    plotValue := 0
+
+
+// Plots
+css1 = color.from_gradient(psi, 0, 80, col_0, col_1)
+css2 = color.from_gradient(psi, 80, 100, css1, col_2)
+
+plot_0 = plot(psi, 'PSI', psi > 80 ? na : css2)
+plot(plotValue, title="Alert Plot", color=color.red)
+
+plot(psi, 'Dots', psi > 80 ? css2 : na, style = plot.style_cross)
+plot_1 = plot(80, display = display.none, editable = false)
+
+fill(plot_0, plot_1, psi < 80 ? na : color.new(#ff1100, 80))
+hline(80)
